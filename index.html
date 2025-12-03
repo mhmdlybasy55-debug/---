@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>خوارزمی پرو</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* ================= 1. CORE THEME & ANIMATIONS ================= */
+        :root {
+            --primary: #8B5CF6; /* بنفش اصلی */
+            --primary-dark: #7C3AED;
+            --bg-gradient: linear-gradient(135deg, #1e1e24 0%, #2d1b4e 100%);
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text-main: #FFFFFF;
+            --text-muted: #A1A1AA;
+            --danger: #EF4444;
+            --success: #10B981;
+            --my-bubble: #8B5CF6;
+            --other-bubble: #27272A;
+        }
+
+        [data-theme="light"] {
+            --bg-gradient: linear-gradient(135deg, #F3F4F6 0%, #E9D5FF 100%);
+            --glass-bg: rgba(255, 255, 255, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+            --other-bubble: #FFFFFF;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-tap-highlight-color: transparent; outline: none; }
+        body { background: var(--bg-gradient); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; justify-content: center; align-items: center; transition: background 0.5s; }
+
+        /* فریم موبایل */
+        #app-frame {
+            width: 100%; height: 100%; max-width: 450px; position: relative; overflow: hidden;
+            background: rgba(0,0,0,0.2); backdrop-filter: blur(50px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        @media(min-width: 500px) { #app-frame { height: 90vh; border-radius: 35px; border: 4px solid rgba(255,255,255,0.1); } }
+
+        /* ابزار گلس مورفیسم */
+        .glass { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 16px; }
+        .btn { width: 100%; padding: 14px; border-radius: 14px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4); }
+        .btn-ghost { background: transparent; border: 1px solid var(--glass-border); color: var(--text-main); }
+        
+        .input-box { margin-bottom: 15px; position: relative; }
+        .input-box label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--text-muted); padding-right: 5px; }
+        .glass-input { width: 100%; padding: 12px 15px; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); color: var(--text-main); font-size: 1rem; transition: 0.3s; }
+        [data-theme="light"] .glass-input { background: rgba(255,255,255,0.5); }
+        .glass-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2); }
+
+        /* صفحات */
+        .page { position: absolute; inset: 0; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transform: scale(0.95); transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); padding: 20px; overflow-y: auto; }
+        .page.active { opacity: 1; pointer-events: all; transform: scale(1); z-index: 10; }
+
+        /* ================= 2. CHAT UI ELEMENTS ================= */
+        .chat-list { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+        .chat-item { display: flex; padding: 12px; border-radius: 14px; cursor: pointer; transition: 0.2s; align-items: center; gap: 12px; }
+        .chat-item:hover { background: rgba(255,255,255,0.05); }
+        [data-theme="light"] .chat-item:hover { background: rgba(0,0,0,0.05); }
+        
+        .avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(45deg, #EC4899, #8B5CF6); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; color: white; flex-shrink: 0; position: relative; }
+        .avatar.online::after { content: ''; position: absolute; bottom: 2px; right: 2px; width: 12px; height: 12px; background: #10B981; border: 2px solid #1e1e24; border-radius: 50%; }
+        
+        .chat-info { flex: 1; overflow: hidden; }
+        .chat-name { font-weight: 600; font-size: 1rem; margin-bottom: 2px; }
+        .chat-msg { color: var(--text-muted); font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .badge { background: var(--primary); color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.75rem; min-width: 20px; text-align: center; }
+
+        /* Chat Room */
+        .msg-area { flex: 1; overflow-y: auto; padding: 10px 0; display: flex; flex-direction: column; gap: 8px; }
+        .msg { max-width: 75%; padding: 8px 12px; border-radius: 16px; font-size: 0.95rem; position: relative; line-height: 1.5; word-wrap: break-word; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .msg.me { align-self: flex-end; background: var(--my-bubble); color: white; border-bottom-left-radius: 16px; border-bottom-right-radius: 4px; }
+        .msg.other { align-self: flex-start; background: var(--other-bubble); color: var(--text-main); border-bottom-left-radius: 4px; border-bottom-right-radius: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        
+        .msg-meta { font-size: 0.7rem; opacity: 0.7; text-align: left; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+        
+        /* Reply Context */
+        .reply-preview { border-left: 3px solid white; padding-left: 8px; margin-bottom: 5px; font-size: 0.8rem; opacity: 0.8; background: rgba(0,0,0,0.1); border-radius: 4px; padding: 4px; }
+
+        /* Input Bar */
+        .chat-input-container { display: flex; align-items: flex-end; padding: 10px; background: var(--glass-bg); backdrop-filter: blur(20px); border-top: 1px solid var(--glass-border); gap: 10px; }
+        .chat-input { flex: 1; background: transparent; border: none; color: var(--text-main); max-height: 100px; padding: 10px; font-size: 1rem; resize: none; }
+        .send-btn { width: 45px; height: 45px; border-radius: 50%; background: var(--primary); color: white; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
+        .send-btn:hover { transform: scale(1.1); }
+
+        /* ================= 3. UTILITIES & MODALS ================= */
+        /* Context Menu (Right Click) */
+        #context-menu { position: absolute; background: rgba(30, 30, 36, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 5px; display: none; z-index: 100; min-width: 150px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .ctx-item { padding: 10px; color: white; cursor: pointer; display: flex; align-items: center; gap: 10px; border-radius: 8px; font-size: 0.9rem; }
+        .ctx-item:hover { background: var(--primary); }
+
+        /* Toast */
+        #toast { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: #333; color: white; padding: 10px 20px; border-radius: 20px; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 200; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* Drawer */
+        .drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 75%; background: rgba(20, 20, 25, 0.95); backdrop-filter: blur(20px); z-index: 50; transform: translateX(100%); transition: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); border-left: 1px solid var(--glass-border); padding: 20px; display: flex; flex-direction: column; }
+        [data-theme="light"] .drawer { background: rgba(255,255,255,0.95); }
+        .drawer.open { transform: translateX(0); }
+        .drawer-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); z-index: 40; opacity: 0; pointer-events: none; transition: 0.3s; }
+        .drawer-overlay.open { opacity: 1; pointer-events: all; }
+
+    </style>
+</head>
+<body>
+
+<div id="app-frame">
+    <div id="toast"><i class="fas fa-info-circle"></i> <span>پیام سیستم</span></div>
+    
+    <div id="context-menu">
+        <div class="ctx-item" onclick="replyMessage()"><i class="fas fa-reply"></i> پاسخ</div>
+        <div class="ctx-item" onclick="copyMessage()"><i class="fas fa-copy"></i> کپی</div>
+        <div class="ctx-item" style="color: #ff4d4d;" onclick="deleteMessage()"><i class="fas fa-trash"></i> حذف</div>
+    </div>
+
+    <div id="p-landing" class="page active" style="justify-content: center; text-align: center;">
+        <div style="font-size: 4rem; color: var(--primary); margin-bottom: 10px; text-shadow: 0 0 30px rgba(139, 92, 246, 0.5);">
+            <i class="fas fa-atom"></i>
+        </div>
+        <h1 style="font-size: 2.5rem; margin-bottom: 5px;">خوارزمی</h1>
+        <p style="color: var(--text-muted); margin-bottom: 50px;">نسل جدید ارتباط مدارس</p>
+        
+        <div class="glass" style="padding: 25px;">
+            <button class="btn btn-primary" onclick="Route.to('p-register-1')">ثبت نام کنید</button>
+            <button class="btn btn-ghost" style="margin-top: 10px;" onclick="Route.to('p-login')">ورود</button>
+        </div>
+    </div>
+
+    <div id="p-register-1" class="page">
+        <h2 style="margin-bottom: 20px;">اطلاعات هویتی</h2>
+        
+        <div class="input-box">
+            <label>کد ملی (۱۰ رقم)</label>
+            <input type="tel" id="r-meli" class="glass-input" placeholder="مثال: ۴۳۱-۱۲۳۴۵۶-۷" maxlength="11" oninput="Format.meli(this)">
+        </div>
+
+        <div class="input-box">
+            <label>تاریخ تولد</label>
+            <input type="tel" id="r-birth" class="glass-input" placeholder="۱۴۰۴/۰۱/۰۱" maxlength="10" oninput="Format.date(this)">
+        </div>
+
+        <div class="input-box">
+            <label>استان محل سکونت</label>
+            <select id="r-province" class="glass-input" onchange="Data.loadSchools()"></select>
+        </div>
+
+        <div style="margin-top: auto; display: flex; gap: 10px;">
+            <button class="btn btn-ghost" onclick="Route.back()" style="flex: 1;">بازگشت</button>
+            <button class="btn btn-primary" onclick="Logic.validateStep1()" style="flex: 2;">مرحله بعد <i class="fas fa-arrow-left"></i></button>
+        </div>
+    </div>
+
+    <div id="p-register-2" class="page">
+        <h2 style="margin-bottom: 20px;">مدرسه و کلاس</h2>
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button class="btn btn-ghost" id="g-male" onclick="Logic.setGender('male')"><i class="fas fa-male"></i> پسر</button>
+            <button class="btn btn-ghost" id="g-female" onclick="Logic.setGender('female')"><i class="fas fa-female"></i> دختر</button>
+        </div>
+
+        <div class="input-box">
+            <label>انتخاب مدرسه</label>
+            <select id="r-school" class="glass-input">
+                <option value="">ابتدا جنسیت را انتخاب کنید</option>
+            </select>
+        </div>
+
+        <div class="input-box">
+            <label>مقطع تحصیلی</label>
+            <select id="r-grade" class="glass-input" onchange="Data.loadClasses()">
+                <option value="">انتخاب کنید...</option>
+                </select>
+        </div>
+
+        <div class="input-box">
+            <label>کلاس</label>
+            <select id="r-class" class="glass-input">
+                <option value="">ابتدا مقطع را انتخاب کنید</option>
+            </select>
+        </div>
+
+        <div style="margin-top: auto; display: flex; gap: 10px;">
+            <button class="btn btn-ghost" onclick="Route.back()" style="flex: 1;">بازگشت</button>
+            <button class="btn btn-primary" onclick="Logic.register()" style="flex: 2;">تکمیل ثبت نام <i class="fas fa-check"></i></button>
+        </div>
+    </div>
+
+    <div id="p-login" class="page">
+        <h2 style="margin-top: 40px; text-align: center;">ورود به حساب</h2>
+        <p style="text-align: center; color: var(--text-muted); margin-bottom: 30px;">اطلاعات خود را وارد کنید</p>
+
+        <div class="input-box">
+            <label>کد ملی</label>
+            <input type="tel" id="l-meli" class="glass-input" oninput="Format.meli(this)">
+        </div>
+        <div class="input-box">
+            <label>تاریخ تولد</label>
+            <input type="tel" id="l-birth" class="glass-input" oninput="Format.date(this)">
+        </div>
+
+        <button class="btn btn-primary" style="margin-top: 20px;" onclick="Logic.login()">ورود</button>
+        <button class="btn btn-ghost" style="margin-top: 10px; border: none;" onclick="Route.to('p-landing')">ثبت نام نکرده‌اید؟</button>
+    </div>
+
+    <div id="p-main" class="page" style="padding: 0;">
+        <div class="glass" style="margin: 10px; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-radius: 50px;">
+            <i class="fas fa-bars" style="font-size: 1.2rem; cursor: pointer;" onclick="UI.toggleDrawer()"></i>
+            <span style="font-weight: bold;">گفتگوها</span>
+            <i class="fas fa-search" style="font-size: 1.2rem;"></i>
+        </div>
+
+        <div style="padding: 0 15px;">
+            <input type="text" class="glass-input" placeholder="جستجو در چت‌ها..." style="border-radius: 20px; padding: 8px 15px;" onkeyup="UI.filterChats(this.value)">
+        </div>
+
+        <div class="chat-list" id="chat-list-container" style="padding: 10px; overflow-y: auto;">
+            </div>
+    </div>
+
+    <div id="p-chat" class="page" style="padding: 0; background: rgba(0,0,0,0.2);">
+        <div class="glass" style="padding: 10px; display: flex; align-items: center; border-radius: 0 0 20px 20px; z-index: 20;">
+            <i class="fas fa-arrow-right" style="padding: 10px; cursor: pointer;" onclick="Route.to('p-main')"></i>
+            <div class="avatar" id="chat-header-avatar" style="width: 35px; height: 35px; font-size: 0.9rem; margin-right: 10px;"></div>
+            <div style="margin-right: 10px;">
+                <div style="font-weight: bold; font-size: 0.95rem;" id="chat-header-name">نام</div>
+                <div style="font-size: 0.75rem; color: var(--primary);">آنلاین</div>
+            </div>
+            <i class="fas fa-ellipsis-v" style="margin-right: auto; padding: 10px;"></i>
+        </div>
+
+        <div id="msg-container" class="msg-area" style="padding: 15px;"></div>
+
+        <div id="reply-bar" style="background: rgba(0,0,0,0.5); padding: 5px 15px; font-size: 0.8rem; display: none; align-items: center; justify-content: space-between;">
+            <span id="reply-text">پاسخ به...</span>
+            <i class="fas fa-times" onclick="Chat.cancelReply()"></i>
+        </div>
+        <div class="chat-input-container">
+            <button class="btn btn-ghost" style="width: 40px; padding: 0; border: none;"><i class="fas fa-paperclip"></i></button>
+            <input type="text" id="msg-input" class="chat-input" placeholder="پیام..." onkeypress="if(event.key === 'Enter') Chat.send()">
+            <button class="send-btn" onclick="Chat.send()"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <div id="p-profile" class="page">
+        <div style="text-align: center; margin-top: 20px;">
+            <div class="avatar" style="width: 100px; height: 100px; margin: 0 auto; font-size: 2.5rem;" id="profile-avatar-big"></div>
+            <button class="btn btn-ghost" style="margin: 10px auto; width: auto; font-size: 0.8rem; border-radius: 20px;"><i class="fas fa-camera"></i> تغییر عکس</button>
+        </div>
+
+        <div class="input-box" style="margin-top: 20px;">
+            <label>نام نمایشی</label>
+            <input type="text" id="prof-name" class="glass-input">
+        </div>
+        <div class="input-box">
+            <label>نام کاربری (@)</label>
+            <input type="text" id="prof-user" class="glass-input">
+        </div>
+        <div class="input-box">
+            <label>بیوگرافی</label>
+            <textarea id="prof-bio" class="glass-input" rows="3"></textarea>
+        </div>
+
+        <button class="btn btn-primary" onclick="Logic.saveProfile()">ذخیره تغییرات</button>
+        <button class="btn btn-ghost" style="margin-top: 10px;" onclick="Route.back()">لغو</button>
+    </div>
+
+    <div class="drawer-overlay" id="drawer-overlay" onclick="UI.toggleDrawer()"></div>
+    <div class="drawer" id="drawer">
+        <div style="padding-bottom: 20px; border-bottom: 1px solid var(--glass-border); margin-bottom: 20px;">
+            <div class="avatar" id="drawer-avatar"></div>
+            <h3 style="margin-top: 10px;" id="drawer-name">کاربر</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);" id="drawer-phone">0912...</p>
+        </div>
+        
+        <div class="chat-item" onclick="Route.to('p-profile'); UI.toggleDrawer();"><i class="fas fa-user-edit" style="width: 20px;"></i> ویرایش پروفایل</div>
+        <div class="chat-item" onclick="Route.to('p-main'); UI.toggleDrawer(); Chat.openSaved();"><i class="fas fa-bookmark" style="width: 20px;"></i> پیام‌های ذخیره شده</div>
+        <div class="chat-item" onclick="UI.toggleTheme()"><i class="fas fa-moon" style="width: 20px;"></i> تغییر تم (شب/روز)</div>
+        <div class="chat-item"><i class="fas fa-shield-alt" style="width: 20px;"></i> امنیت و بلاک‌ها</div>
+        <div class="chat-item" style="margin-top: auto; color: var(--danger);" onclick="Logic.logout()"><i class="fas fa-sign-out-alt" style="width: 20px;"></i> خروج از حساب</div>
+    </div>
+
+</div>
+
+<script>
+/* ================= SYSTEM LOGIC (JS) ================= */
+
+// 1. DATA STORE (شبیه سازی دیتابیس)
+const DB = {
+    provinces: ["آذربایجان شرقی","آذربایجان غربی","اردبیل","اصفهان","البرز","ایلام","بوشهر","تهران","چهارمحال و بختیاری","خراسان جنوبی","خراسان رضوی","خراسان شمالی","خوزستان","زنجان","سمنان","سیستان و بلوچستان","فارس","قزوین","قم","کردستان","کرمان","کرمانشاه","کهگیلویه و بویراحمد","گلستان","گیلان","لرستان","مازندران","مرکزی","هرمزگان","همدان","یزد"],
+    
+    // Generator function for schools to allow "infinite" feeling
+    getSchools: function(province, gender) {
+        let list = [];
+        const types = gender === 'male' ? ['شهید', 'امام', 'دکتر', 'علامه'] : ['حضرت', 'فاطمیه', 'فرزانگان', 'کوثر'];
+        
+        // مدارس واقعی قزوین طبق درخواست
+        if (province === 'قزوین') {
+            if (gender === 'male') return ['شهید جعفر احمدی مقدم', 'شهید برادران مافی', 'حاج قاسم سلیمانی', 'نمونه دولتی خوارزمی', 'شهید بابایی', 'علامه جعفری', 'پاسداران', 'شاهد'];
+            return ['نمونه فرزانگان', 'شاهد فاطمیه', 'مدرسه نور', 'پروین اعتصامی', 'کوثر', 'ریحانه', 'حجاب'];
+        }
+
+        // تولید مدارس فیک برای سایر استان‌ها
+        for(let i=1; i<=15; i++) {
+            list.push(`مدرسه ${types[i%types.length]} ${i} (${province})`);
+        }
+        return list;
+    }
+};
+
+// 2. STATE MANAGEMENT (حافظه)
+const Store = {
+    get: (key) => JSON.parse(localStorage.getItem('kharazmi_' + key)),
+    set: (key, val) => localStorage.setItem('kharazmi_' + key, JSON.stringify(val)),
+    user: null,
+    
+    init: () => {
+        Store.user = Store.get('user');
+        const theme = Store.get('theme') || 'dark';
+        document.body.setAttribute('data-theme', theme);
+        
+        // Generate Grades List
+        const gradeSelect = document.getElementById('r-grade');
+        const grades = ['اول','دوم','سوم','چهارم','پنجم','ششم','هفتم','هشتم','نهم','دهم','یازدهم','دوازدهم'];
+        grades.forEach((g, i) => {
+            let opt = document.createElement('option');
+            opt.value = i+1; opt.innerText = 'پایه ' + g;
+            gradeSelect.appendChild(opt);
+        });
+
+        // Load Provinces
+        const pSelect = document.getElementById('r-province');
+        DB.provinces.forEach(p => {
+            let opt = document.createElement('option');
+            opt.value = p; opt.innerText = p;
+            pSelect.appendChild(opt);
+        });
+
+        if (Store.user) {
+            UI.updateProfileUI();
+            Route.to('p-main');
+        }
+    }
+};
+
+// 3. ROUTING
+const Route = {
+    history: [],
+    to: (pageId) => {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+        Route.history.push(pageId);
+        
+        if(pageId === 'p-main') Chat.renderList();
+        if(pageId === 'p-profile') {
+            document.getElementById('prof-name').value = Store.user.name || 'کاربر';
+            document.getElementById('prof-user').value = Store.user.username || '';
+            document.getElementById('prof-bio').value = Store.user.bio || '';
+        }
+    },
+    back: () => {
+        Route.history.pop();
+        const prev = Route.history[Route.history.length - 1] || 'p-landing';
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(prev).classList.add('active');
+    }
+};
+
+// 4. UI HELPERS
+const UI = {
+    toast: (msg, type='info') => {
+        const t = document.getElementById('toast');
+        t.innerHTML = `<i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i> ${msg}`;
+        t.style.borderLeft = `4px solid ${type === 'error' ? '#EF4444' : '#10B981'}`;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    },
+    toggleDrawer: () => {
+        document.getElementById('drawer').classList.toggle('open');
+        document.getElementById('drawer-overlay').classList.toggle('open');
+    },
+    toggleTheme: () => {
+        const current = document.body.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        document.body.setAttribute('data-theme', current);
+        Store.set('theme', current);
+    },
+    updateProfileUI: () => {
+        if(!Store.user) return;
+        document.getElementById('drawer-name').innerText = Store.user.name || 'کاربر بی‌نام';
+        document.getElementById('drawer-phone').innerText = Store.user.meli;
+        document.getElementById('drawer-avatar').innerText = (Store.user.name || 'U').charAt(0);
+        document.getElementById('profile-avatar-big').innerText = (Store.user.name || 'U').charAt(0);
+    },
+    filterChats: (query) => {
+        const items = document.querySelectorAll('.chat-item');
+        items.forEach(item => {
+            const name = item.querySelector('.chat-name').innerText.toLowerCase();
+            item.style.display = name.includes(query.toLowerCase()) ? 'flex' : 'none';
+        });
+    }
+};
+
+// 5. FORMATTING
+const Format = {
+    meli: (el) => {
+        let v = el.value.replace(/\D/g, '');
+        if(v.length > 9) el.value = `${v.slice(0,3)}-${v.slice(3,9)}-${v.slice(9,10)}`;
+        else if(v.length > 3) el.value = `${v.slice(0,3)}-${v.slice(3)}`;
+        else el.value = v;
+    },
+    date: (el) => {
+        let v = el.value.replace(/\D/g, '');
+        if(v.length > 6) el.value = `${v.slice(0,4)}/${v.slice(4,6)}/${v.slice(6)}`;
+        else if(v.length > 4) el.value = `${v.slice(0,4)}/${v.slice(4)}`;
+        else el.value = v;
+    }
+};
+
+// 6. BUSINESS LOGIC
+const Logic = {
+    tempData: {},
+    
+    validateStep1: () => {
+        const meli = document.getElementById('r-meli').value.replace(/\D/g, '');
+        const birth = document.getElementById('r-birth').value;
+        const prov = document.getElementById('r-province').value;
+        
+        if(meli.length !== 10) return UI.toast('کد ملی باید ۱۰ رقم باشد', 'error');
+        if(birth.length < 8) return UI.toast('تاریخ تولد نامعتبر است', 'error');
+        if(!prov) return UI.toast('استان را انتخاب کنید', 'error');
+        
+        Logic.tempData = { meli, birth, prov };
+        Route.to('p-register-2');
+    },
+
+    setGender: (g) => {
+        Logic.tempData.gender = g;
+        document.getElementById('g-male').classList.toggle('btn-primary', g==='male');
+        document.getElementById('g-male').classList.toggle('btn-ghost', g!=='male');
+        document.getElementById('g-female').classList.toggle('btn-primary', g==='female');
+        document.getElementById('g-female').classList.toggle('btn-ghost', g!=='female');
+        Data.loadSchools();
+    },
+
+    register: () => {
+        const school = document.getElementById('r-school').value;
+        const grade = document.getElementById('r-grade').value;
+        const cls = document.getElementById('r-class').value;
+        
+        if(!school || !grade || !cls) return UI.toast('لطفا تمام موارد را انتخاب کنید', 'error');
+        
+        const newUser = {
+            ...Logic.tempData, school, grade, class: cls,
+            name: 'کاربر جدید',
+            username: Logic.tempData.meli,
+            chats: [] // Empty chats initially
+        };
+        
+        Store.set('user', newUser);
+        Store.user = newUser;
+        UI.updateProfileUI();
+        UI.toast('ثبت نام با موفقیت انجام شد');
+        setTimeout(() => Route.to('p-main'), 1000);
+    },
+
+    login: () => {
+        const m = document.getElementById('l-meli').value.replace(/\D/g, '');
+        if(Store.user && Store.user.meli === m) {
+            UI.toast('خوش آمدید');
+            Route.to('p-main');
+        } else if (m === '1234567890') {
+             // Mock login
+             Store.user = { name: 'ادمین تست', meli: m };
+             Store.set('user', Store.user);
+             Route.to('p-main');
+        } else {
+            UI.toast('حساب کاربری یافت نشد', 'error');
+        }
+    },
+
+    saveProfile: () => {
+        Store.user.name = document.getElementById('prof-name').value;
+        Store.user.username = document.getElementById('prof-user').value;
+        Store.user.bio = document.getElementById('prof-bio').value;
+        Store.set('user', Store.user);
+        UI.updateProfileUI();
+        UI.toast('پروفایل بروزرسانی شد');
+        Route.back();
+    },
+
+    logout: () => {
+        localStorage.removeItem('kharazmi_user');
+        location.reload();
+    }
+};
+
+const Data = {
+    loadSchools: () => {
+        if(!Logic.tempData.gender || !Logic.tempData.prov) return;
+        const list = DB.getSchools(Logic.tempData.prov, Logic.tempData.gender);
+        const sel = document.getElementById('r-school');
+        sel.innerHTML = '<option value="">انتخاب کنید</option>';
+        list.forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
+    },
+    loadClasses: () => {
+        const grade = document.getElementById('r-grade').value;
+        const sel = document.getElementById('r-class');
+        sel.innerHTML = '<option value="">انتخاب کنید</option>';
+        for(let i=1; i<=5; i++) sel.innerHTML += `<option value="${grade}/${i}">کلاس ${grade}/${i}</option>`;
+    }
+};
+
+// 7. CHAT ENGINE (TELEGRAM CLONE)
+const Chat = {
+    activeChat: null,
+    replyId: null,
+    messages: [
+        { id: 1, text: 'سلام! خوش آمدید به خوارزمی', time: '10:00', type: 'other' }
+    ],
+
+    renderList: () => {
+        const container = document.getElementById('chat-list-container');
+        container.innerHTML = '';
+        
+        // Pin School Channel
+        const schoolName = Store.user?.school || 'مدرسه';
+        const pinHTML = `
+            <div class="chat-item" style="background: rgba(139, 92, 246, 0.1); border-right: 3px solid var(--primary);" onclick="Chat.open('${schoolName}')">
+                <div class="avatar online"><i class="fas fa-bullhorn"></i></div>
+                <div class="chat-info">
+                    <div class="chat-name">${schoolName} <i class="fas fa-thumbtack" style="font-size:0.7rem; color: var(--primary);"></i></div>
+                    <div class="chat-msg" style="color: var(--primary);">اطلاعیه مهم: فردا کلاس‌ها...</div>
+                </div>
+            </div>`;
+        container.innerHTML += pinHTML;
+
+        // Mock Chats
+        ['دبیر ریاضی', 'گروه کلاس', 'پشتیبانی'].forEach((name, i) => {
+            container.innerHTML += `
+            <div class="chat-item" onclick="Chat.open('${name}')">
+                <div class="avatar" style="background: linear-gradient(45deg, #3B82F6, #10B981);">${name[0]}</div>
+                <div class="chat-info">
+                    <div class="chat-name">${name}</div>
+                    <div class="chat-msg">پیام آزمایشی شماره ${i+1}...</div>
+                </div>
+                <div style="font-size: 0.7rem; opacity: 0.6;">12:30</div>
+            </div>`;
+        });
+    },
+
+    open: (name) => {
+        Chat.activeChat = name;
+        document.getElementById('chat-header-name').innerText = name;
+        document.getElementById('chat-header-avatar').innerText = name[0];
+        
+        // Load messages (Mock)
+        const container = document.getElementById('msg-container');
+        container.innerHTML = '';
+        Chat.messages.forEach(m => Chat.addBubble(m));
+        
+        Route.to('p-chat');
+        Chat.scrollToBottom();
+    },
+
+    openSaved: () => Chat.open('پیام‌های ذخیره شده'),
+
+    send: () => {
+        const input = document.getElementById('msg-input');
+        const txt = input.value.trim();
+        if(!txt) return;
+
+        // FILTER LOGIC
+        if(txt.includes('لباس') || txt.includes('شلوار') || txt.includes('پیراهن')) {
+            UI.toast('🚫 ارسال کلمات مربوط به پوشاک ممنوع است!', 'error');
+            return;
+        }
+
+        const msg = {
+            id: Date.now(),
+            text: txt,
+            time: new Date().toLocaleTimeString('fa-IR', {hour:'2-digit', minute:'2-digit'}),
+            type: 'me',
+            replyTo: Chat.replyId
+        };
+
+        Chat.addBubble(msg);
+        input.value = '';
+        Chat.cancelReply();
+        Chat.scrollToBottom();
+
+        // Auto Reply
+        setTimeout(() => {
+            Chat.addBubble({
+                id: Date.now()+1,
+                text: 'پیام شما دریافت شد.',
+                time: new Date().toLocaleTimeString('fa-IR', {hour:'2-digit', minute:'2-digit'}),
+                type: 'other'
+            });
+            Chat.scrollToBottom();
+        }, 1000);
+    },
+
+    addBubble: (msg) => {
+        const container = document.getElementById('msg-container');
+        let replyHTML = '';
+        if(msg.replyTo) {
+            replyHTML = `<div class="reply-preview">پاسخ به پیام...</div>`;
+        }
+
+        const div = document.createElement('div');
+        div.className = `msg ${msg.type}`;
+        div.setAttribute('data-id', msg.id);
+        div.innerHTML = `
+            ${replyHTML}
+            ${msg.text}
+            <div class="msg-meta">
+                ${msg.time} ${msg.type === 'me' ? '<i class="fas fa-check-double" style="color: #6ee7b7;"></i>' : ''}
+            </div>
+        `;
+        
+        // Right Click Event
+        div.oncontextmenu = (e) => {
+            e.preventDefault();
+            Chat.showContext(e.clientX, e.clientY, msg.id, msg.text);
+        };
+        // Long Press for Mobile
+        let pressTimer;
+        div.ontouchstart = (e) => {
+            pressTimer = setTimeout(() => {
+                Chat.showContext(e.touches[0].clientX, e.touches[0].clientY, msg.id, msg.text);
+            }, 800);
+        };
+        div.ontouchend = () => clearTimeout(pressTimer);
+
+        container.appendChild(div);
+    },
+
+    scrollToBottom: () => {
+        const c = document.getElementById('msg-container');
+        c.scrollTop = c.scrollHeight;
+    },
+
+    // Context Menu Logic
+    tempMsg: null,
+    showContext: (x, y, id, text) => {
+        Chat.tempMsg = {id, text};
+        const menu = document.getElementById('context-menu');
+        menu.style.display = 'block';
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        
+        // Close on click elsewhere
+        document.addEventListener('click', () => menu.style.display = 'none', {once: true});
+    },
+    
+    cancelReply: () => {
+        Chat.replyId = null;
+        document.getElementById('reply-bar').style.display = 'none';
+    }
+};
+
+// Global functions for context menu (Need to be on window)
+window.replyMessage = () => {
+    Chat.replyId = Chat.tempMsg.id;
+    document.getElementById('reply-bar').style.display = 'flex';
+    document.getElementById('reply-text').innerText = `پاسخ به: ${Chat.tempMsg.text.substring(0, 20)}...`;
+    document.getElementById('msg-input').focus();
+};
+window.copyMessage = () => {
+    navigator.clipboard.writeText(Chat.tempMsg.text);
+    UI.toast('کپی شد');
+};
+window.deleteMessage = () => {
+    const el = document.querySelector(`.msg[data-id="${Chat.tempMsg.id}"]`);
+    if(el) {
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 300);
+        UI.toast('پیام حذف شد');
+    }
+};
+
+// Start
+window.onload = Store.init;
+
+</script>
+</body>
+</html>
